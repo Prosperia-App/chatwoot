@@ -46,12 +46,12 @@ Migrations run only on `web`. Health: `GET https://chat.prosperiaapp.com/api` re
 | `POSTGRES_PASSWORD` | Shared | `${{Postgres.PGPASSWORD}}` |
 | `POSTGRES_DATABASE` | Shared | `chatwoot` |
 | `REDIS_URL` | Shared | `${{Redis.REDIS_URL}}` |
-| `MAILER_SENDER_EMAIL` | Shared | `Prosperia <noreply@facturas.prosperiaapp.com>`. Sends from the SES identity `facturas.prosperiaapp.com` (verified, DKIM SUCCESS). Apex `prosperiaapp.com` is not used: its DKIM is still FAILED. |
-| `MAILER_REPLY_TO` | Shared | `soporte@prosperiaapp.com` (Google Workspace mailbox, apex MX). **Not an env var in upstream.** Needs the fork patch below. |
+| `MAILER_SENDER_EMAIL` | Shared | `Prosperia <facturas@prosperiaapp.com>`. SES email-address identity, verified; same sender as OpenReply. |
+| `MAILER_REPLY_TO` | Shared | `soporte@prosperiaapp.com` (Google Workspace mailbox). Read by the fork patch below. |
 | `SMTP_ADDRESS` | Shared | `email-smtp.<AWS_REGION>.amazonaws.com` |
 | `SMTP_PORT` | Shared | `587` |
-| `SMTP_DOMAIN` | Shared | `facturas.prosperiaapp.com` |
-| `SMTP_USERNAME` / `SMTP_PASSWORD` | Shared | SES SMTP credentials of IAM user `ses-smtp-chatwoot` |
+| `SMTP_DOMAIN` | Shared | `prosperiaapp.com` |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | Shared | SES SMTP credentials of IAM user `ses-smtp-chatwoot`. Policy: `ses:SendRawEmail` only, `ses:FromAddress` = `facturas@prosperiaapp.com`. Access key and SMTP password to be created in console, stored under `Chatwoot / AWS`. |
 | `SMTP_AUTHENTICATION` | Shared | `login` |
 | `SMTP_ENABLE_STARTTLS_AUTO` | Shared | `true` |
 | `ACTIVE_STORAGE_SERVICE` | Shared | `amazon` |
@@ -63,9 +63,9 @@ Migrations run only on `web`. Health: `GET https://chat.prosperiaapp.com/api` re
 | `SIDEKIQ_CONCURRENCY` | `worker` | `10` |
 | `PORT` | `web` | `3000` |
 
-## Fork patch: Reply-To (pending approval)
+## Fork patch: Reply-To
 
-Upstream `ApplicationMailer` sets only `from` (`MAILER_SENDER_EMAIL`). Transactional mail (agent invites, password reset, notifications) then replies to `noreply@facturas.prosperiaapp.com`, which the facturas receipt rule stores in S3 `prosperia-inbound-emails/emails/`. Patch: `app/mailers/application_mailer.rb` adds `reply_to: ENV.fetch('MAILER_REPLY_TO', nil)`. Carried in branch `prosperia` as a documented patch. Until it is in place, replies go to the facturas inbound bucket.
+Patch in branch `prosperia`: `app/mailers/application_mailer.rb` sets `default reply_to: ENV.fetch('MAILER_REPLY_TO', nil)`. Upstream sets only `from`. Conversation-reply mail passes its own `reply_to` explicitly and is unaffected. Transactional mail (invites, Devise, notifications) replies to `MAILER_REPLY_TO`. Not yet tested: needs a Ruby/Rails run (`bundle exec rspec` and `bundle exec rubocop` on the changed file).
 
 ## Account setup
 
