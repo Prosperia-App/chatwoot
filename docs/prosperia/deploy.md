@@ -46,10 +46,11 @@ Migrations run only on `web`. Health: `GET https://chat.prosperiaapp.com/api` re
 | `POSTGRES_PASSWORD` | Shared | `${{Postgres.PGPASSWORD}}` |
 | `POSTGRES_DATABASE` | Shared | `chatwoot` |
 | `REDIS_URL` | Shared | `${{Redis.REDIS_URL}}` |
-| `MAILER_SENDER_EMAIL` | Shared | `Prosperia <noreply@prosperiaapp.com>` (SES-verified) |
+| `MAILER_SENDER_EMAIL` | Shared | `Prosperia <noreply@facturas.prosperiaapp.com>`. Sends from the SES identity `facturas.prosperiaapp.com` (verified, DKIM SUCCESS). Apex `prosperiaapp.com` is not used: its DKIM is still FAILED. |
+| `MAILER_REPLY_TO` | Shared | `soporte@prosperiaapp.com` (Google Workspace mailbox, apex MX). **Not an env var in upstream.** Needs the fork patch below. |
 | `SMTP_ADDRESS` | Shared | `email-smtp.<AWS_REGION>.amazonaws.com` |
 | `SMTP_PORT` | Shared | `587` |
-| `SMTP_DOMAIN` | Shared | `prosperiaapp.com` |
+| `SMTP_DOMAIN` | Shared | `facturas.prosperiaapp.com` |
 | `SMTP_USERNAME` / `SMTP_PASSWORD` | Shared | SES SMTP credentials of IAM user `ses-smtp-chatwoot` |
 | `SMTP_AUTHENTICATION` | Shared | `login` |
 | `SMTP_ENABLE_STARTTLS_AUTO` | Shared | `true` |
@@ -61,6 +62,10 @@ Migrations run only on `web`. Health: `GET https://chat.prosperiaapp.com/api` re
 | `RAILS_MAX_THREADS` | Shared | `5` |
 | `SIDEKIQ_CONCURRENCY` | `worker` | `10` |
 | `PORT` | `web` | `3000` |
+
+## Fork patch: Reply-To (pending approval)
+
+Upstream `ApplicationMailer` sets only `from` (`MAILER_SENDER_EMAIL`). Transactional mail (agent invites, password reset, notifications) then replies to `noreply@facturas.prosperiaapp.com`, which the facturas receipt rule stores in S3 `prosperia-inbound-emails/emails/`. Patch: `app/mailers/application_mailer.rb` adds `reply_to: ENV.fetch('MAILER_REPLY_TO', nil)`. Carried in branch `prosperia` as a documented patch. Until it is in place, replies go to the facturas inbound bucket.
 
 ## Account setup
 
